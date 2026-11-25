@@ -1,7 +1,11 @@
-// Keep transformations separate from the DOM so they can be tested directly.
-export function cleanLines(text) {
-  if (typeof text !== 'string') throw new TypeError('Expected text');
-  const lines = text.split(/\r\n|\r|\n/).map(line => line.trim()).filter(Boolean);
-  const unique = [...new Set(lines)];
-  return { text: unique.join('\n'), count: unique.length, removed: lines.length - unique.length };
+export const STORAGE_KEY='coolcode:carecompass:shortlist';
+export function safeURL(value){try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)&&!u.username&&!u.password?u.href:'';}catch{return '';}}
+export function matches(row,filters){
+  const q=(filters.q||'').normalize('NFKD').toLowerCase().replace(/\s/g,'');
+  const hay=[row.name,row.address,row.city,row.postal].join(' ').normalize('NFKD').toLowerCase().replace(/\s/g,'');
+  return (!q||hay.includes(q))&&(!filters.province||row.province===filters.province)&&(!filters.age||row.ages[filters.age]===true)&&(!filters.program||row.programs[filters.program]===true)&&(!filters.hours||row.operating[filters.hours]===true)&&(!filters.vacancy||filters.vacancy==='reported'&&row.vacancy===true||filters.vacancy==='unknown'&&row.vacancy===null)&&(!filters.saved||filters.saved.includes(row.id));
 }
+export function loadSaved(storage){try{const data=JSON.parse(storage.getItem(STORAGE_KEY)||'{}');return data&&typeof data==='object'&&!Array.isArray(data)?Object.fromEntries(Object.entries(data).filter(([id,v])=>/^(bc|ns)-[\w-]+$/.test(id)&&v&&typeof v==='object').map(([id,v])=>[id,{status:String(v.status||'To contact').slice(0,80),note:String(v.note||'').slice(0,3000),updated:String(v.updated||'')}])):{};}catch{return {};}}
+export function saveEntries(storage,entries){try{storage.setItem(STORAGE_KEY,JSON.stringify(entries));return true;}catch{return false;}}
+export function csv(rows,saved){const quote=v=>'"'+String(v??'').replace(/^[\s]*[=+@-]/,"'$&").replaceAll('"','""')+'"';return [['Name','Province','Address','Phone','Contact status','Private note'],...rows.filter(r=>saved[r.id]).map(r=>[r.name,r.province,r.address,r.phone,saved[r.id].status,saved[r.id].note])].map(row=>row.map(quote).join(',')).join('\r\n');}
+export function vacancyLabel(row){return row.vacancy===null?'Vacancy not supplied':row.vacancy?'Vacancy reported — confirm directly':'No vacancy reported — confirm directly';}

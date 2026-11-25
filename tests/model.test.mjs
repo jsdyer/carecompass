@@ -1,21 +1,6 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { cleanLines } from '../web/model.mjs';
-test('trims, removes blanks and preserves first-seen order', () => {
-  assert.deepEqual(cleanLines('  Halifax\nLangley\nHalifax\n\nVancouver  '), {
-    text: 'Halifax\nLangley\nVancouver', count: 3, removed: 1,
-  });
-});
-test('supports Windows and old Mac line endings', () => {
-  assert.equal(cleanLines('a\r\nb\ra').text, 'a\nb');
-});
-test('empty text and whitespace produce an empty result', () => {
-  assert.deepEqual(cleanLines(' \n\t'), { text: '', count: 0, removed: 0 });
-});
-test('preserves case and Unicode', () => {
-  assert.equal(cleanLines('Québec\nquébec\n東京\nQuébec').text, 'Québec\nquébec\n東京');
-});
-test('treats markup as ordinary text', () => {
-  assert.equal(cleanLines('<script>alert(1)</script>\n<script>alert(1)</script>').text, '<script>alert(1)</script>');
-});
-test('rejects non-text input', () => { assert.throws(() => cleanLines(null), TypeError); });
+import test from 'node:test';import assert from 'node:assert/strict';import {matches,loadSaved,saveEntries,csv,safeURL,vacancyLabel} from '../web/model.mjs';
+const row={id:'ns-123',province:'NS',name:'A New Provider',address:'15 Main Street',city:'Halifax',postal:'B3J 1A1',phone:'902',ages:{under36:true,preschool:null},programs:{full_day:true},operating:{weekend:null},vacancy:null};
+test('arbitrary provider and postal input are searched without a preset whitelist',()=>{assert.ok(matches(row,{q:'new provider'}));assert.ok(matches(row,{q:'b3j1a1'}));assert.ok(!matches(row,{q:'elsewhere'}));});
+test('unknown service and vacancy never pass a positive filter',()=>{assert.ok(matches(row,{age:'under36'}));assert.ok(!matches(row,{age:'preschool'}));assert.ok(!matches(row,{hours:'weekend'}));assert.ok(matches(row,{vacancy:'unknown'}));assert.ok(!matches(row,{vacancy:'reported'}));assert.equal(vacancyLabel(row),'Vacancy not supplied');});
+test('shortlist persists explicitly, rejects invalid structures and reports quota failures',()=>{let value;const s={getItem:()=>value,setItem:(k,v)=>value=v};assert.deepEqual(loadSaved(s),{});const saved={'ns-123':{status:'Waitlisted',note:'Call Tuesday'}};assert.ok(saveEntries(s,saved));assert.equal(loadSaved(s)['ns-123'].note,'Call Tuesday');assert.equal(saveEntries({setItem(){throw Error('quota');}},saved),false);assert.deepEqual(loadSaved(null),{});value='[]';assert.deepEqual(loadSaved(s),{});});
+test('safe external URLs and exported notes cannot become script/formula content',()=>{assert.equal(safeURL('javascript:alert(1)'),'');assert.equal(safeURL('https://user:password@example.com'),'');assert.equal(safeURL('https://example.com'),'https://example.com/');assert.match(csv([row],{'ns-123':{status:'To contact',note:'=SUM(1,2)'}}),/"'=SUM\(1,2\)"/);});
