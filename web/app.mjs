@@ -1,5 +1,6 @@
 import {matches,loadSaved,saveEntries,safeURL,csv,vacancyLabel} from './model.mjs';
 const $=id=>document.getElementById(id),el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
+try {
 let [config,data]=await Promise.all([fetch('./config.json').then(r=>r.json()),fetch('./data/latest.json').then(r=>r.json())]);
 const storage=(()=>{try{return localStorage;}catch{return null;}})();
 let saved=loadSaved(storage),limit=config.page_size,filtered=[],map,layer;
@@ -24,3 +25,5 @@ function renderSources(){ $('sources').replaceChildren();for(const source of dat
 
 $('save-capture').addEventListener('click',()=>{const u=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'})),a=el('a');a.href=u;a.download='carecompass-directory-'+data.checked_at.slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);});
 $('open-capture').addEventListener('change',async()=>{try{const file=$('open-capture').files[0];if(!file)return;if(file.size>25000000)throw new Error('The capture is too large.');const next=JSON.parse(await file.text());if(next.schema!==1||!Array.isArray(next.facilities)||!Array.isArray(next.sources)||typeof next.checked_at!=='string'||next.facilities.length>20000||next.facilities.some(r=>!r.id||!r.name||!r.ages||!r.programs||!r.operating||!Array.isArray(r.inspection_dates)))throw new Error('This is not a supported directory capture.');data=next;limit=config.page_size;renderSources();render();$('storage-status').textContent='Viewing saved capture from '+data.checked_at+'. Its original dates and coverage are preserved.';}catch(e){$('storage-status').textContent=e.message;}});
+
+} catch { $('status').textContent='The published directory could not load. Reload the page or open an official directory below.'; for(const [name,url] of [['BC Child Care Map','https://catalogue.data.gov.bc.ca/dataset/child-care-map-data'],['Nova Scotia Child Care Directory','https://data.novascotia.ca/Education-Early-Childhood/Child-Care-Directory/3j9v-yimg']]){const a=el('a',name);a.href=url;const p=el('p');p.append(a);$('sources').append(p);} }

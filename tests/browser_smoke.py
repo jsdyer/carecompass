@@ -40,6 +40,9 @@ def main():
     assert page.locator('.card').count()==1
     assert '2025-01-01' in page.locator('#sources').inner_text()
     page.locator('#show-map').click()
+    page.route('**/data/latest.json*',lambda route:route.fulfill(status=503,body='temporarily unavailable'))
+    page.reload();page.wait_for_function("document.querySelector('#status').textContent.includes('could not load')")
+    page.unroute('**/data/latest.json*');page.reload();page.locator('.card').first.wait_for()
     page.screenshot(path=str(screenshots/'desktop.png'),full_page=True)
     page.set_viewport_size({'width':390,'height':844})
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
