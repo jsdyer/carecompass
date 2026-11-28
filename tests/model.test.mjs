@@ -4,3 +4,10 @@ test('arbitrary provider and postal input are searched without a preset whitelis
 test('unknown service and vacancy never pass a positive filter',()=>{assert.ok(matches(row,{age:'under36'}));assert.ok(!matches(row,{age:'preschool'}));assert.ok(!matches(row,{hours:'weekend'}));assert.ok(matches(row,{vacancy:'unknown'}));assert.ok(!matches(row,{vacancy:'reported'}));assert.equal(vacancyLabel(row),'Vacancy not supplied');});
 test('shortlist persists explicitly, rejects invalid structures and reports quota failures',()=>{let value;const s={getItem:()=>value,setItem:(k,v)=>value=v};assert.deepEqual(loadSaved(s),{});const saved={'ns-123':{status:'Waitlisted',note:'Call Tuesday'}};assert.ok(saveEntries(s,saved));assert.equal(loadSaved(s)['ns-123'].note,'Call Tuesday');assert.equal(saveEntries({setItem(){throw Error('quota');}},saved),false);assert.deepEqual(loadSaved(null),{});value='[]';assert.deepEqual(loadSaved(s),{});});
 test('safe external URLs and exported notes cannot become script/formula content',()=>{assert.equal(safeURL('javascript:alert(1)'),'');assert.equal(safeURL('https://user:password@example.com'),'');assert.equal(safeURL('https://example.com'),'https://example.com/');assert.match(csv([row],{'ns-123':{status:'To contact',note:'=SUM(1,2)'}}),/"'=SUM\(1,2\)"/);});
+test('community links match source locality and province rather than address words',()=>{
+  assert.ok(matches({...row,province:'BC',city:'  Langley,BC'}, {community:'bc-langley'}));
+  assert.ok(!matches({...row,province:'BC',city:'Fort Langley'}, {community:'bc-langley'}));
+  assert.ok(!matches({...row,address:'15 Halifax Road',city:'Bedford'}, {community:'ns-halifax'}));
+  assert.ok(!matches(row, {age:'infant'}));
+  assert.ok(matches({...row,ages:{infant:true,toddler:false}}, {age:'infant',community:'ns-halifax'}));
+});

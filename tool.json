@@ -18,5 +18,9 @@
     "mode": "snapshot",
     "detail": "Official BC and NS child-care directory snapshots, with source coverage and vacancy dates.",
     "cadence": "Daily"
+  },
+  "result_directory": {
+    "path": "records/",
+    "title": "Child-care programs and provider contacts by community"
   }
 }

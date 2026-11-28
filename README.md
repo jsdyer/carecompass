@@ -5,6 +5,8 @@
 <!-- coolcode:guide -->
 Care Compass collects the complete published BC Child Care Map layer and Nova Scotia Child Care Directory, rather than limiting the search to a preset city list. Search a name, city, street or postal code; filter by province, age, program, operating pattern and reported vacancy. Specific filters match explicit positive source flags, so unknown fields remain visible under “Any / unknown”. The map uses supplied coordinates and loads OpenStreetMap tiles only when opened.
 
+Community guides list provider phones, published age groups, local service coverage and nearby places. Nova Scotia distinguishes infant and toddler flags where the capture includes them. A community link opens the same address locality and age or program in the shortlist tool.
+
 BC covers ministry-funded licensed child care, not every BC provider. Its reported vacancy flags include their original update dates and are never promises of an available space. Nova Scotia updates its directory biannually; its source coverage date and publication date are displayed separately from our collection check. NS does not publish live vacancies in this dataset. Licence capacity is not spare capacity, and source inspection dates are not inspection findings or endorsements.
 
 Choose “Add to shortlist” to save a provider on this device. Contact status and notes survive ordinary refreshes in the same browser, with CSV export and a delete button; they do not sync or submit an application. Directory JSON export/reopen preserves earlier source coverage and dates separately from the private shortlist. Confirm age eligibility, fees, availability and hours with the provider before making plans.
@@ -22,10 +24,12 @@ All-N BC service/hour defaults accompanying “None” or “No opening hours”
 
 ## Expand or customize
 
-1. Edit `web/config.json`: `default_province`, `page_size`, source names, metadata URLs and coverage descriptions are documented there. Current adapters collect *all* BC and NS records; adding another city requires no change.
+1. Edit `web/config.json`: `default_province`, `page_size`, source names, metadata URLs and coverage descriptions are documented there. Current adapters collect all BC and NS records. Add a community to its region in `community_guides` to publish a static profile at the next build. Use the locality printed in the provincial file. Capitalization, punctuation and an appended province abbreviation are normalized. Empty communities are omitted. The full search continues to include providers beyond the featured localities.
 2. To add a jurisdiction, write and test a reviewed adapter in `scripts/refresh.py`, then add its source entry to the configuration. Map its ages/operating patterns explicitly; never invent vacancy information. Add its province selector and coverage description in the UI. Unknown adapters fail the collection rather than silently disappearing.
 3. Run `python3 scripts/refresh.py`, inspect each source count/date and the normalized data, then run the checks below. A failed or incomplete refresh leaves the previous data and timestamps untouched.
 4. Publish a main-branch build through GitHub Pages (source: GitHub Actions). Changes are copied to `dist/`; no CNAME is used. The content-versioned asset graph prevents a returning browser from loading the previous app or capture with the new HTML.
+
+The offline build generates the community directory, individual guides, telephone listings and child sitemap from the very same capture as the search tool. City counts follow the province’s address locality, which can differ from a municipality or metro boundary. Age and schedule counts require explicit positive source fields. The November 2026 expansion preserves Nova Scotia’s separate infant and toddler flags on newly collected editions. Earlier saved editions retain their original combined group.
 
 Every validated capture is retained in Git history. Visitors can download a public directory JSON and reopen it later; the displayed coverage/check dates and counts follow that file. Exported shortlist CSV contains the visitor’s private notes; it is separate from directory JSON.
 

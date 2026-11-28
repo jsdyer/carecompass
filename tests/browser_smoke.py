@@ -4,6 +4,9 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import json, os, shutil, tempfile, threading
 from playwright.sync_api import sync_playwright
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts"))
+from communities import local_key
 ROOT=Path(__file__).resolve().parents[1]
 class QuietHandler(SimpleHTTPRequestHandler):
  def log_message(self,*args):pass
@@ -47,6 +50,31 @@ def main():
     page.set_viewport_size({'width':390,'height':844})
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     page.screenshot(path=str(screenshots/'mobile.png'),full_page=True)
+    base=f'http://127.0.0.1:{server.server_port}/{ROOT.name}/'
+    page.goto(base+'records/ns-halifax/')
+    page.get_by_role('link',name='Build a Halifax contact shortlist').click()
+    page.locator('.card').first.wait_for()
+    assert page.locator('#community').input_value()=='ns-halifax' and page.locator('#province').input_value()=='NS'
+    current=json.loads((ROOT/'web/data/latest.json').read_text())
+    expected=sum(local_key(r['city'])=='halifax' and r['province']=='NS' for r in current['facilities'])
+    assert page.locator('#status').inner_text().startswith(f'{expected:,} matching')
+    correct=sum(r['ages'].get('infant') is True for r in current['facilities'] if r['province']=='NS' and local_key(r['city'])=='halifax')
+    if correct:
+     page.locator('#age').select_option('infant')
+     assert page.locator('#status').inner_text().startswith(f'{correct:,} matching')
+     page.reload();page.locator('.card').first.wait_for()
+     assert page.locator('#age').input_value()=='infant' and page.locator('#community').input_value()=='ns-halifax'
+    else:
+     assert page.locator('#age-coverage').is_visible()
+    page.locator('#province').select_option('BC')
+    assert page.locator('#community').input_value()=='' and 'community=' not in page.url
+    offline=browser.new_page(java_script_enabled=False,viewport={'width':320,'height':640})
+    offline.goto(base+'records/'); offline.get_by_role('link',name='Halifax',exact=True).click()
+    assert offline.get_by_role('heading',name='Providers to call').count()==1
+    assert offline.locator('#providers .provider-list li').count()==expected
+    if correct: assert offline.locator('#infant-care .provider-list li').count()==correct
+    assert offline.evaluate('document.documentElement.scrollWidth<=innerWidth')
+    offline.close()
     assert not errors,errors;browser.close()
    print('Browser task, persistence, safe text, source failures and mobile layout passed')
   finally:server.shutdown()
