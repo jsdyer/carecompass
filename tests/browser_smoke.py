@@ -41,6 +41,9 @@ def main():
     page.wait_for_function("document.querySelector('#storage-status').textContent.includes('2025-01-01')")
     page.locator('#reset').click()
     assert page.locator('.card').count()==1
+    assert page.locator('#language-field').is_hidden()
+    assert page.locator('#province option').count() == 2
+    assert page.locator('#province option').last.get_attribute('value') == previous['facilities'][0]['province']
     assert '2025-01-01' in page.locator('#sources').inner_text()
     page.locator('#show-map').click()
     page.route('**/data/latest.json*',lambda route:route.fulfill(status=503,body='temporarily unavailable'))
@@ -68,6 +71,22 @@ def main():
      assert page.locator('#age-coverage').is_visible()
     page.locator('#province').select_option('BC')
     assert page.locator('#community').input_value()=='' and 'community=' not in page.url
+    nb = [r for r in current['facilities'] if r['province']=='NB']
+    if nb:
+     page.goto(base+'?province=NB'); page.locator('.card').first.wait_for()
+     assert page.locator('#status').inner_text().startswith(f'{len(nb):,} matching')
+     assert page.locator('#hours').is_disabled() and page.locator('#program').is_disabled()
+     assert page.locator('#age option[value="toddler"]').evaluate("option => option.disabled && option.hidden")
+     page.get_by_role('button',name='Add to shortlist',exact=True).first.click()
+     page.reload(); page.locator('.card').first.wait_for(); page.locator('#saved-only').check()
+     assert page.locator('.card').count()==1 and page.locator('#province').input_value()=='NB'
+     french=sum(r.get('languages') in ('French','Bilingual') for r in nb)
+     if french:
+      page.goto(base+'?province=NB&language=french'); page.locator('.card').first.wait_for()
+      assert page.locator('#language').input_value()=='french'
+      assert page.locator('#status').inner_text().startswith(f'{french:,} matching')
+      page.locator('#province').select_option('BC')
+      assert page.locator('#language-field').is_hidden() and 'language=' not in page.url
     offline=browser.new_page(java_script_enabled=False,viewport={'width':320,'height':640})
     offline.goto(base+'records/'); offline.get_by_role('link',name='Halifax',exact=True).click()
     assert offline.get_by_role('heading',name='Providers to call').count()==1

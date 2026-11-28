@@ -46,3 +46,34 @@ class CommunityTests(unittest.TestCase):
             self.assertEqual(page.count('rel="canonical"'),1)
             del row["ages"]["infant"],row["ages"]["toddler"]
             self.assertNotIn('id="infant-care"',render())
+
+    def test_new_province_uses_its_own_coverage_and_links_without_toddler_program_claims(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stage = Path(tmp)
+            (stage / "data").mkdir()
+            config = {"community_guides": {"NS": {"Halifax area": ["Halifax"]},
+                                          "NB": {"Southeast": ["Dieppe", "Empty"]}}}
+            source = {"id": "nb", "province_name": "New Brunswick", "name": "Licence registry",
+                      "url": "https://example.ca/licences", "licence": "Open data",
+                      "licence_url": "https://example.ca/terms", "sites_url": "https://example.ca/sites",
+                      "sites_name": "Facility sites", "sites_source_updated": "2026-10-20"}
+            row = {"id": "nb-12", "province": "NB", "name": "Garderie", "type": "Home",
+                   "city": "Dieppe, NB", "phone": "", "languages": "French",
+                   "ages": {"infant": True, "preschool": True, "school": False}, "programs": {}, "operating": {}}
+            (stage / "config.json").write_text(json.dumps(config))
+            (stage / "data/latest.json").write_text(json.dumps({
+                "sources": [source], "facilities": [row], "checked_at": "2026-11-28"}))
+            options = build_guides(stage, {"url": "/carecompass/"}, True)
+            page = (stage / "records/nb-dieppe/index.html").read_text()
+            self.assertIn("licensed places for that age group", page)
+            self.assertIn("Phone not supplied", page)
+            self.assertIn("community=Dieppe&amp;language=french", page)
+            self.assertIn('href="https://example.ca/sites"', page)
+            self.assertIn("2026-10-20", page)
+            self.assertNotIn("toddler", page.lower())
+            self.assertNotIn("full-day", page.lower())
+            self.assertIn('data-province="NB"', options)
+            self.assertNotIn("Empty", options)
+            self.assertNotIn("Nova Scotia", (stage / "records/index.html").read_text())
+            self.assertIn("New Brunswick", (stage / "records/index.html").read_text())
+            self.assertEqual(len(ElementTree.parse(stage / "sitemap.xml").getroot()), 2)

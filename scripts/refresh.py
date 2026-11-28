@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect complete public child-care directories; publish only after both validate."""
+"""Collect complete public child-care directories; publish only after all sources validate."""
 from datetime import datetime, timezone
 from pathlib import Path
 import json, re, urllib.request, urllib.parse, time
@@ -53,6 +53,92 @@ def ns(row):
     point=row.get('georeference',{}).get('coordinates',[])
     return {'id':'ns-'+row['facility_identifier'],'province':'NS','name':clean(row['facility_name']),'type':clean(row.get('facility_type')),'address':', '.join(filter(None,[clean(row.get('address')),clean(row.get('city')),clean(row.get('postal'))])),'city':clean(row.get('city')),'postal':clean(row.get('postal')),'phone':clean(row.get('phone')),'email':'','website':'','inspection_url':'https://nsbr-online-services.gov.ns.ca/DCSOnline/ECDS/loadSearchPage.action','coordinates':coordinates(*point) if len(point)==2 else None,'ages':{'infant':flag(row.get('age_infant')),'toddler':flag(row.get('age_toddler')),'under36':combined_under_three(row),'preschool':flag(row.get('age_preschool')),'school':flag(row.get('age_school_age'))},'age_range':clean(row.get('age_range')),'programs':{k:flag(row.get(f)) for k,f in {'full_day':'prog_full_day','part_day':'prog_part_day','school':'prog_school_age'}.items()},'operating':{k:None for k in ['weekday','weekend','overnight','early','late']},'hours':'Not supplied','languages':'','vacancy':None,'vacancy_updated':None,'vacancy_by_age':{},'capacity':int(row['total_licence_capacity']) if row.get('total_licence_capacity','').isdigit() else None,'inspection_dates':[{'type':label,'date':row[k]} for k,label in [('annual_inspection','Annual'),('annual_unannounced_inspection','Unannounced')] if row.get(k)],'source':'ns'}
 
+def licensed_capacity(row, key):
+    value = row.get(key)
+    if value is None or value == '':
+        return None
+    if not re.fullmatch(r'[0-9]+', str(value)):
+        raise ValueError('Invalid NB licensed capacity: ' + key)
+    return int(value)
+
+
+def nb(row, sites):
+    licence = clean(row.get('license_number'))
+    if not licence.isdigit():
+        raise ValueError('Invalid NB licence number')
+    name = clean(row['facility_name'])
+    street_and_city = clean(row.get('facility_address_1'))
+    street, separator, locality = street_and_city.partition(',')
+    # The second address component can include a county following the locality.
+    city = locality.split(',')[0].strip()
+    postal = clean(row.get('facility_address_3'))
+    address = ', '.join(filter(None, [street_and_city.strip(', '), clean(row.get('facility_address_2')), postal]))
+    site = {}
+    if street and separator and len(sites) == 1:
+        candidate = sites[0]
+        def address_key(value):
+            return re.sub(r'[^\w]+', '', clean(value).casefold())
+        operator = clean(row.get('operator_id'))
+        if (operator and operator == clean(candidate.get('operator_id'))
+                and name.casefold() == clean(candidate.get('facility_name')).casefold()
+                and address_key(address) == address_key(candidate.get('civic_address'))):
+            site = candidate
+
+    capacity_by_age = {
+        'infant': licensed_capacity(row, 'max_number_of_infants'),
+        'preschool': licensed_capacity(row, 'max_number_of_preschool_aged'),
+        'school': licensed_capacity(row, 'max_number_of_school_age'),
+    }
+    ages = {key: (n > 0 if n is not None else None) for key, n in capacity_by_age.items()}
+    # An infant place qualifies; the preschool capacity doesn't identify toddlers.
+    ages['under36'] = True if ages['infant'] else None
+    return {
+        'id': 'nb-' + licence, 'province': 'NB', 'source': 'nb',
+        'name': name, 'type': clean(row.get('facility_type')),
+        'address': address, 'city': city, 'postal': postal,
+        'phone': clean(site.get('facility_phone')), 'email': clean(site.get('facility_email')),
+        'website': '', 'inspection_url': '', 'inspection_dates': [],
+        'coordinates': coordinates(site.get('longitude'), site.get('latitude')),
+        'languages': clean(row.get('language_of_service')),
+        'capacity': licensed_capacity(row, 'max_number_of_children'), 'capacity_by_age': capacity_by_age,
+        'ages': ages, 'programs': {}, 'hours': 'Not supplied', 'operating': {},
+        'vacancy': None, 'vacancy_updated': None, 'vacancy_by_age': {},
+    }
+
+
+def nb_source_rows(endpoint, metadata_url, minimum):
+    # Snapshot metadata before and after paging so the join uses identified editions.
+    stamp = get(metadata_url)['rowsUpdatedAt']
+    count = int(get(endpoint, {'$select': 'count(*)'})[0]['count'])
+    if count < minimum:
+        raise ValueError('Incomplete NB source inventory')
+    rows = []
+    for offset in range(0, count, 1000):
+        rows.extend(get(endpoint, {'$select': '*, :id as portal_row_id', '$order': ':id',
+                                   '$limit': 1000, '$offset': offset}))
+    ids = {r.get('portal_row_id') for r in rows}
+    if len(rows) != count or len(ids) != count or None in ids or '' in ids:
+        raise ValueError('Incomplete or overlapping NB source pages')
+    if get(metadata_url)['rowsUpdatedAt'] != stamp:
+        raise ValueError('NB directory changed during collection')
+    return rows, datetime.fromtimestamp(stamp, timezone.utc).isoformat()
+
+
+def collect_nb(source):
+    facilities, updated = nb_source_rows(source['endpoint'], source['metadata'], source['minimum_records'])
+    site_rows, sites_updated = nb_source_rows(source['sites_endpoint'], source['sites_metadata'], source['minimum_site_records'])
+    sites = {}
+    for site in site_rows:
+        licence = clean(site.get('licence_number'))
+        if not licence.isdigit():
+            raise ValueError('Invalid NB site licence')
+        sites.setdefault(licence, []).append(site)
+    records = [nb(r, sites.get(clean(r.get('license_number')), [])) for r in facilities]
+    detail = {**source, 'record_count': len(records), 'source_updated': updated, 'coverage_date': None,
+              'sites_record_count': len(site_rows), 'sites_source_updated': sites_updated}
+    return records, detail
+
+
 def collect(config):
     sources=[];records=[]
     for source in config['sources']:
@@ -74,6 +160,8 @@ def collect(config):
             if len(rows)!=count:raise ValueError('Incomplete NS collection')
             normalized=[ns(r) for r in rows]
             detail={**source,'record_count':len(rows),'source_updated':datetime.fromtimestamp(meta['rowsUpdatedAt'],timezone.utc).isoformat(),'coverage_date':meta['metadata']['custom_fields']['Detailed Metadata'].get('Usage Considerations','Not supplied')}
+        elif source['id'] == 'nb':
+            normalized, detail = collect_nb(source)
         else:raise ValueError('No reviewed adapter for '+source['id'])
         if len(normalized)<source['minimum_records'] or any(not r['id'] or not r['name'] for r in normalized):raise ValueError('Invalid source records')
         records+=normalized;sources.append(detail)

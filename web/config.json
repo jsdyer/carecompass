@@ -1,6 +1,6 @@
 {
   "page_size": 40,
-  "default_province": "NS",
+  "default_province": "",
   "sources": [
     {
       "id": "bc",
@@ -11,7 +11,8 @@
       "coverage": "Ministry-funded licensed child care facilities, not every BC provider.",
       "frequency": "Daily source; daily collection",
       "licence": "Open Government Licence – British Columbia",
-      "licence_url": "https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc"
+      "licence_url": "https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc",
+      "province_name": "British Columbia"
     },
     {
       "id": "ns",
@@ -23,7 +24,26 @@
       "coverage": "All active daycares in the published provincial directory. No live vacancy or waitlist information.",
       "frequency": "Biannual source; daily check",
       "licence": "Open Government Licence – Nova Scotia",
-      "licence_url": "https://novascotia.ca/opendata/licence.asp"
+      "licence_url": "https://novascotia.ca/opendata/licence.asp",
+      "province_name": "Nova Scotia"
+    },
+    {
+      "id": "nb",
+      "province_name": "New Brunswick",
+      "name": "New Brunswick Licensed Early Learning and Childcare Facilities",
+      "endpoint": "https://gnb.socrata.com/resource/q6ky-jc7a.json",
+      "metadata": "https://gnb.socrata.com/api/views/q6ky-jc7a",
+      "url": "https://gnb.socrata.com/d/q6ky-jc7a",
+      "minimum_records": 500,
+      "sites_name": "New Brunswick Licensed Early Learning and Childcare Sites",
+      "sites_endpoint": "https://gnb.socrata.com/resource/46xa-wxhc.json",
+      "sites_metadata": "https://gnb.socrata.com/api/views/46xa-wxhc",
+      "sites_url": "https://gnb.socrata.com/d/46xa-wxhc",
+      "minimum_site_records": 500,
+      "coverage": "One listing per licence in the provincial facilities directory. Licensed age-group capacity describes authorized spaces. Vacancies and hours are not supplied. Contact details and map points require a single matching site and a published street address.",
+      "frequency": "Daily check of both provincial datasets",
+      "licence": "New Brunswick Open Government Licence",
+      "licence_url": "https://www.gnb.ca/en/campaign/geonb/open-government-license.html"
     }
   ],
   "community_guides": {
@@ -97,6 +117,36 @@
       "Cape Breton": [
         "Sydney",
         "North Sydney"
+      ]
+    },
+    "NB": {
+      "Moncton and the southeast": [
+        "Moncton",
+        "Dieppe",
+        "Riverview",
+        "Shediac",
+        "Sackville"
+      ],
+      "Fredericton and the Saint John River Valley": [
+        "Fredericton",
+        "Oromocto",
+        "New Maryland",
+        "Woodstock"
+      ],
+      "Saint John and the Kennebecasis Valley": [
+        "Saint John",
+        "Quispamsis",
+        "Rothesay",
+        "Hampton"
+      ],
+      "Miramichi and northern New Brunswick": [
+        "Miramichi",
+        "Bathurst",
+        "Edmundston",
+        "Campbellton",
+        "Caraquet",
+        "Tracadie-Sheila",
+        "Grand-Sault/Grand Falls"
       ]
     }
   }

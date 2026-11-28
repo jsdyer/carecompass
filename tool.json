@@ -1,11 +1,12 @@
 {
   "id": "carecompass",
   "title": "Care Compass",
-  "description": "Find licensed child care in British Columbia and Nova Scotia, compare published services and keep a private contact shortlist.",
+  "description": "Find licensed child care in British Columbia, New Brunswick and Nova Scotia. Compare published services and save a private contact shortlist.",
   "category": "places",
   "tags": [
     "child care",
     "BC",
+    "New Brunswick",
     "Nova Scotia",
     "family"
   ],
@@ -16,7 +17,7 @@
   "access": "browser",
   "data_info": {
     "mode": "snapshot",
-    "detail": "Official BC and NS child-care directory snapshots, with source coverage and vacancy dates.",
+    "detail": "Three provincial directories provide locations and services. Vacancy flags are available only where British Columbia reports them.",
     "cadence": "Daily"
   },
   "result_directory": {

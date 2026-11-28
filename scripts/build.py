@@ -9,7 +9,7 @@ import shutil
 import tempfile
 from urllib.parse import urlsplit
 
-from communities import build_guides
+from communities import anchor, build_guides, joined_names, province_name, province_sources
 from search_metadata import add_search_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,6 +103,14 @@ def build(root=ROOT):
             page = page.replace(placeholder, markup if on_coolcode else "")
         options = build_guides(stage, tool, on_coolcode)
         page = page.replace("{{COMMUNITY_OPTIONS}}", options)
+        capture = json.loads((stage / "data/latest.json").read_text(encoding="utf-8"))
+        sources = province_sources(capture)
+        names = {code: province_name(code, source) for code, source in sources.items()}
+        page = page.replace("{{PROVINCE_NAMES}}", escape(joined_names(names.values())))
+        page = page.replace("{{PROVINCE_OPTIONS}}", "".join(
+            f'<option value="{escape(code, quote=True)}">{escape(name)}</option>' for code, name in names.items()))
+        page = page.replace("{{SOURCE_LINKS}}", "".join(
+            "<p>" + anchor(source["url"], source["name"]) + "</p>" for source in sources.values()))
         if re.search(r"\{\{[A-Z_]+\}\}", page):
             raise ValueError("Unresolved template placeholder in web/index.html")
         page = add_search_metadata(page, tool)

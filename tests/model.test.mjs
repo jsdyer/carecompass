@@ -11,3 +11,21 @@ test('community links match source locality and province rather than address wor
   assert.ok(!matches(row, {age:'infant'}));
   assert.ok(matches({...row,ages:{infant:true,toddler:false}}, {age:'infant',community:'ns-halifax'}));
 });
+
+test('bilingual New Brunswick listings are searchable and shortlist notes survive a reload', () => {
+  const facility = {...row, id:'nb-2817', province:'NB', name:'Garderie Étoile', city:'Tracadie, NB'};
+  assert.ok(matches(facility, {q:'garderie etoile', community:'nb-tracadie', province:'NB'}));
+  const storage = {getItem:() => JSON.stringify({'nb-2817':{note:'Ask about September'}})};
+  assert.equal(loadSaved(storage)['nb-2817'].note, 'Ask about September');
+});
+
+test('language of service includes bilingual NB providers and excludes other source meanings', () => {
+  const english = {...row, province:'NB', languages:'English'};
+  const bilingual = {...english, languages:'Bilingual'};
+  assert.ok(matches(english, {language:'english'}));
+  assert.ok(!matches(english, {language:'french'}));
+  for (const language of ['english','french','bilingual']) assert.ok(matches(bilingual, {language}));
+  assert.ok(!matches({...row,province:'BC',languages:'French'}, {language:'french'}));
+  assert.ok(!matches(row, {language:'english'}));
+  assert.ok(matches(row, {language:''}));
+});
